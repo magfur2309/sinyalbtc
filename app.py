@@ -2,46 +2,40 @@ import requests
 import pandas as pd
 import pandas_ta as ta
 import time
-import os
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
+from sklearn.preprocessing import MinMaxScaler
 from dotenv import load_dotenv
+import os
 
-# Load variabel lingkungan dari file .env
+# Load environment variables
 load_dotenv()
 
 # API Binance untuk harga BTC/USDT
 BINANCE_API_URL = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=100"
 
 # API Telegram untuk notifikasi
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")  # Gunakan dari .env
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")  # Load dari .env
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")  # Load dari .env
 
 def send_telegram_message(message):
-    """Mengirim pesan ke Telegram dengan error handling"""
-    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
-        print("⚠️ Token atau Chat ID Telegram tidak ditemukan!")
-        return
-    
+    """Mengirim pesan ke Telegram"""
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     data = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
-    
-    try:
-        response = requests.post(url, data=data, timeout=10)
-        response.raise_for_status()
-    except requests.RequestException as e:
-        print(f"❌ Gagal mengirim pesan Telegram: {e}")
+    requests.post(url, data=data)
 
 def get_btc_prices():
-    """Mengambil data harga candle terakhir dari Binance"""
+    """Mengambil data harga candle terakhir dari Binance (1 menit)"""
     try:
-        response = requests.get(BINANCE_API_URL, timeout=10)
-        response.raise_for_status()
+        response = requests.get(BINANCE_API_URL)
         data = response.json()
-        
         df = pd.DataFrame(data, columns=["Time", "Open", "High", "Low", "Close", "Volume", "_", "_", "_", "_", "_", "_"])
         df = df.astype(float)
         return df
-    except requests.RequestException as e:
-        print(f"❌ Gagal mengambil data dari Binance: {e}")
+    except Exception as e:
+        print("Error:", e)
         return None
 
 while True:
@@ -78,5 +72,5 @@ while True:
         if latest_rsi < 30 or latest_rsi > 70:
             telegram_message = f"⚡ BTC/USDT: ${current_price}\n📊 Sinyal: {signal}"
             send_telegram_message(telegram_message)
-    
+        
     time.sleep(60)
