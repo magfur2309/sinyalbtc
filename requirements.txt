@@ -1,6 +1,7 @@
-requests
+streamlit
 pandas
-pandas_ta
 numpy
+requests
+pandas_ta
 tensorflow
 scikit-learn
