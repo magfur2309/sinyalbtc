@@ -5,3 +5,6 @@ requests
 pandas_ta
 tensorflow
 scikit-learn
+numpy==1.23.5
+pandas_ta==0.3.14b
+tensorflow==2.9.0
