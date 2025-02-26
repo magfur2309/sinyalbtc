@@ -1,10 +1,6 @@
-pdfplumber
+numpy==1.23.5
 pandas
-streamlit
-pytesseract
-pdf2image
-pillow
-xlsxwriter
-pandas_ta 
-setuptools
-numpy
+pandas_ta
+tensorflow
+scikit-learn
+requests
