@@ -1,12 +1,1 @@
-streamlit
-pandas
-numpy
-requests
-pandas_ta
-tensorflow-cpu
-scikit-learn
-numpy==1.23.5
-pandas_ta==0.3.14b
-tensorflow==2.9.0
-python-dotenv
-protobuf==3.20.*
+
