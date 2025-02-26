@@ -13,7 +13,7 @@ BINANCE_API_URL = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval
 
 # API Telegram untuk notifikasi
 TELEGRAM_TOKEN = "7692585926:AAF0Wxcaco0-tc5n_n41oe6lKUB-bEg4-ic"  # Ganti dengan token bot Telegram
-TELEGRAM_CHAT_ID = "t.me/ngepirbot"  # Ganti dengan chat ID Telegram
+TELEGRAM_CHAT_ID = "123456789"  # Ganti dengan chat ID Telegram (angka, bukan link)
 
 def send_telegram_message(message):
     """Mengirim pesan ke Telegram"""
@@ -33,29 +33,11 @@ def get_btc_prices():
         print("Error:", e)
         return None
 
-def detect_candlestick_patterns(df):
-    """Mendeteksi pola candlestick utama"""
-    df["Hammer"] = ta.cdl_hammer(df["Open"], df["High"], df["Low"], df["Close"])
-    df["Engulfing"] = ta.cdl_engulfing(df["Open"], df["High"], df["Low"], df["Close"])
-    df["Shooting Star"] = ta.cdl_shootingstar(df["Open"], df["High"], df["Low"], df["Close"])
-    
-    patterns = []
-    if df["Hammer"].iloc[-1] > 0:
-        patterns.append("📈 Hammer (Bullish)")
-    if df["Engulfing"].iloc[-1] > 0:
-        patterns.append("📈 Bullish Engulfing")
-    if df["Engulfing"].iloc[-1] < 0:
-        patterns.append("📉 Bearish Engulfing")
-    if df["Shooting Star"].iloc[-1] > 0:
-        patterns.append("📉 Shooting Star (Bearish)")
-    
-    return patterns
-
 while True:
     df = get_btc_prices()
     
     if df is not None:
-        df["RSI"] = ta.rsi(df["Close"], length=14)
+        df["RSI"] = df.ta.rsi(length=14)
         macd = df.ta.macd(fast=12, slow=26, signal=9)
         df["MACD"] = macd["MACD_12_26_9"]
         df["Signal"] = macd["MACDs_12_26_9"]
@@ -65,9 +47,6 @@ while True:
         latest_rsi = df["RSI"].iloc[-1]
         latest_macd = df["MACD"].iloc[-1]
         latest_signal = df["Signal"].iloc[-1]
-        
-        # Deteksi pola candlestick
-        patterns = detect_candlestick_patterns(df)
         
         # Menentukan sinyal beli/jual
         signal = "⏳ Tunggu..."
@@ -81,7 +60,6 @@ while True:
         # Print hasil analisis
         print(f"BTC/USDT: ${current_price}")
         print(f"RSI: {latest_rsi:.2f} | MACD: {latest_macd:.2f} | Signal: {latest_signal:.2f}")
-        print(f"Pola Candlestick: {', '.join(patterns) if patterns else 'Tidak ada'}")
         print(f"📊 Sinyal: {signal}")
         print("-" * 40)
         
