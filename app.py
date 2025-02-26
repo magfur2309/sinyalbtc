@@ -1,76 +1,62 @@
-import requests
+import streamlit as st
 import pandas as pd
-import pandas_ta as ta
-import time
 import numpy as np
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense
-from sklearn.preprocessing import MinMaxScaler
-from dotenv import load_dotenv
-import os
+import requests
+import plotly.graph_objects as go
+from sklearn.ensemble import RandomForestClassifier
+from ta.trend import SMAIndicator, EMAIndicator, MACD
+from ta.momentum import RSIIndicator
 
-# Load environment variables
-load_dotenv()
+# Fungsi untuk mengambil data BTC dari Binance API
+def get_btc_data():
+    url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=100"
+    response = requests.get(url).json()
+    df = pd.DataFrame(response, columns=["timestamp", "open", "high", "low", "close", "volume", 
+                                         "close_time", "quote_asset_volume", "trades", 
+                                         "taker_base_vol", "taker_quote_vol", "ignore"])
+    df = df[["timestamp", "open", "high", "low", "close", "volume"]]
+    df["timestamp"] = pd.to_datetime(df["timestamp"], unit='ms')
+    df[["open", "high", "low", "close", "volume"]] = df[["open", "high", "low", "close", "volume"]].astype(float)
+    return df
 
-# API Binance untuk harga BTC/USDT
-BINANCE_API_URL = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=100"
+# Fungsi untuk menghitung indikator teknikal
+def add_indicators(df):
+    df["SMA"] = SMAIndicator(df["close"], window=14).sma_indicator()
+    df["EMA"] = EMAIndicator(df["close"], window=14).ema_indicator()
+    df["RSI"] = RSIIndicator(df["close"], window=14).rsi()
+    macd = MACD(df["close"])
+    df["MACD"] = macd.macd()
+    df["MACD_Signal"] = macd.macd_signal()
+    return df
 
-# API Telegram untuk notifikasi
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")  # Load dari .env
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")  # Load dari .env
+# Fungsi untuk model prediksi menggunakan Random Forest
+def train_model(df):
+    df = df.dropna()
+    X = df[["SMA", "EMA", "RSI", "MACD", "MACD_Signal"]]
+    y = np.where(df["close"].shift(-1) > df["close"], 1, 0)  # 1 = beli, 0 = jual
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X, y)
+    df["Prediksi"] = model.predict(X)
+    return df
 
-def send_telegram_message(message):
-    """Mengirim pesan ke Telegram"""
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    data = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
-    requests.post(url, data=data)
+# Streamlit UI
+st.title("Aplikasi Sinyal BTC dengan Analisis Teknikal dan Machine Learning")
+df = get_btc_data()
+df = add_indicators(df)
+df = train_model(df)
 
-def get_btc_prices():
-    """Mengambil data harga candle terakhir dari Binance (1 menit)"""
-    try:
-        response = requests.get(BINANCE_API_URL)
-        data = response.json()
-        df = pd.DataFrame(data, columns=["Time", "Open", "High", "Low", "Close", "Volume", "_", "_", "_", "_", "_", "_"])
-        df = df.astype(float)
-        return df
-    except Exception as e:
-        print("Error:", e)
-        return None
+# Visualisasi data
+fig = go.Figure()
+fig.add_trace(go.Candlestick(x=df["timestamp"], open=df["open"], high=df["high"], 
+                             low=df["low"], close=df["close"], name="Candlestick"))
+fig.add_trace(go.Scatter(x=df["timestamp"], y=df["SMA"], mode="lines", name="SMA"))
+fig.add_trace(go.Scatter(x=df["timestamp"], y=df["EMA"], mode="lines", name="EMA"))
 
-while True:
-    df = get_btc_prices()
-    
-    if df is not None:
-        df["RSI"] = df.ta.rsi(length=14)
-        macd = df.ta.macd(fast=12, slow=26, signal=9)
-        df["MACD"] = macd["MACD_12_26_9"]
-        df["Signal"] = macd["MACDs_12_26_9"]
-        
-        # Harga terbaru & indikator
-        current_price = df["Close"].iloc[-1]
-        latest_rsi = df["RSI"].iloc[-1]
-        latest_macd = df["MACD"].iloc[-1]
-        latest_signal = df["Signal"].iloc[-1]
-        
-        # Menentukan sinyal beli/jual
-        signal = "⏳ Tunggu..."
-        telegram_message = None
-        
-        if latest_rsi < 30 and latest_macd > latest_signal:
-            signal = "📈 Beli! (Oversold & MACD Bullish)"
-        elif latest_rsi > 70 and latest_macd < latest_signal:
-            signal = "📉 Jual! (Overbought & MACD Bearish)"
-        
-        # Print hasil analisis
-        print(f"BTC/USDT: ${current_price}")
-        print(f"RSI: {latest_rsi:.2f} | MACD: {latest_macd:.2f} | Signal: {latest_signal:.2f}")
-        print(f"📊 Sinyal: {signal}")
-        print("-" * 40)
-        
-        # Kirim notifikasi Telegram jika ada sinyal penting
-        if latest_rsi < 30 or latest_rsi > 70:
-            telegram_message = f"⚡ BTC/USDT: ${current_price}\n📊 Sinyal: {signal}"
-            send_telegram_message(telegram_message)
-        
-    time.sleep(60)
+buy_signals = df[df["Prediksi"] == 1]
+sell_signals = df[df["Prediksi"] == 0]
+fig.add_trace(go.Scatter(x=buy_signals["timestamp"], y=buy_signals["close"], mode="markers", 
+                         marker=dict(color="green", size=10), name="Beli"))
+fig.add_trace(go.Scatter(x=sell_signals["timestamp"], y=sell_signals["close"], mode="markers", 
+                         marker=dict(color="red", size=10), name="Jual"))
+
+st.plotly_chart(fig)
