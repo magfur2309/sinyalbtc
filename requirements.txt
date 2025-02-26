@@ -1,6 +1,6 @@
-numpy==1.23.5
+requests
 pandas
 pandas_ta
+numpy
 tensorflow
 scikit-learn
-requests
