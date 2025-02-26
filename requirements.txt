@@ -7,3 +7,4 @@ pillow
 xlsxwriter
 pandas_ta 
 setuptools
+numpy
