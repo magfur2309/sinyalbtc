@@ -5,18 +5,18 @@ import time
 import os
 from dotenv import load_dotenv
 
-# Load variabel lingkungan dari .env
+# Load variabel lingkungan dari file .env
 load_dotenv()
 
 # API Binance untuk harga BTC/USDT
 BINANCE_API_URL = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=100"
 
-# API Telegram untuk notifikasi (Gunakan variabel lingkungan)
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+# API Telegram untuk notifikasi
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")  # Gunakan dari .env
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 def send_telegram_message(message):
-    """Mengirim pesan ke Telegram dengan pengecekan error."""
+    """Mengirim pesan ke Telegram dengan error handling"""
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
         print("⚠️ Token atau Chat ID Telegram tidak ditemukan!")
         return
@@ -26,15 +26,15 @@ def send_telegram_message(message):
     
     try:
         response = requests.post(url, data=data, timeout=10)
-        response.raise_for_status()  # Raise error jika request gagal
+        response.raise_for_status()
     except requests.RequestException as e:
         print(f"❌ Gagal mengirim pesan Telegram: {e}")
 
 def get_btc_prices():
-    """Mengambil data harga candle terakhir dari Binance (1 menit)"""
+    """Mengambil data harga candle terakhir dari Binance"""
     try:
         response = requests.get(BINANCE_API_URL, timeout=10)
-        response.raise_for_status()  # Raise error jika request gagal
+        response.raise_for_status()
         data = response.json()
         
         df = pd.DataFrame(data, columns=["Time", "Open", "High", "Low", "Close", "Volume", "_", "_", "_", "_", "_", "_"])
